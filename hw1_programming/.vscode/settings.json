@@ -5,6 +5,7 @@
         "inet.h": "c",
         "netdb.h": "c",
         "socket.h": "c",
-        "unistd.h": "c"
+        "unistd.h": "c",
+        "random": "c"
     }
 }

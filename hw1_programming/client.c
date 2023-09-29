@@ -8,7 +8,7 @@
 #include <arpa/inet.h>
 
 #define ERR_EXIT(a) do { perror(a); exit(1); } while(0)
-#define BUFFER_SIZE 10 * (FROM_LEN + CONTENT_LEN + 5)
+#define BUFFER_SIZE 10 * (FROM_LEN + CONTENT_LEN)
 
 typedef struct {
     char* ip; // server's ip
@@ -36,7 +36,7 @@ int main(int argc, char** argv){
 
     printf("==============================\nWelcome to CSIE Bulletin board\n==============================\n");
     // recv(cli.conn_fd, cli.buf, BUFFER_SIZE, 0);
-    strcpy(cli.buf, "");
+    memset(cli.buf, 0, sizeof(cli.buf));
     printf("%s\n", cli.buf);
     printf("==============================\n");
 
@@ -46,25 +46,26 @@ int main(int argc, char** argv){
         scanf("%s", cli.buf);
         if (strcmp(cli.buf, "post") == 0) {
             send(cli.conn_fd, cli.buf, strlen(cli.buf), 0);
+            memset(cli.buf, 0, sizeof(cli.buf));
             printf("FROM: ");
             scanf("%s", cli.buf);
             strcat(cli.buf, "\n");
             send(cli.conn_fd, cli.buf, strlen(cli.buf), 0);
             // recv(cli.conn_fd, cli.buf, BUFFER_SIZE, 0);
             // printf("%s", cli.buf);
-            strcpy(cli.buf, "");
+            memset(cli.buf, 0, sizeof(cli.buf));
             printf("CONTENT:\n");
             scanf("%s", cli.buf);
-            strcat(cli.buf, "\n\n");
+            strcat(cli.buf, "\n");
             send(cli.conn_fd, cli.buf, strlen(cli.buf), 0);
             // recv(cli.conn_fd, cli.buf, BUFFER_SIZE, 0);
             // printf("%s", cli.buf);
-            strcpy(cli.buf, "");
+            memset(cli.buf, 0, sizeof(cli.buf));
         } else if (strcmp(cli.buf, "pull") == 0) {
-            // send(cli.conn_fd, cli.buf, strlen(cli.buf), 0);
+            send(cli.conn_fd, cli.buf, strlen(cli.buf), 0);
             // recv(cli.conn_fd, cli.buf, BUFFER_SIZE, 0);
-            printf("%s", cli.buf);
-            strcpy(cli.buf, "");
+            // printf("%s", cli.buf);
+            memset(cli.buf, 0, sizeof(cli.buf));
         } else if (strcmp(cli.buf, "exit") == 0) {
             send(cli.conn_fd, cli.buf, strlen(cli.buf), 0);
             break;

@@ -13,7 +13,7 @@
 #include <stdbool.h>
 
 #define ERR_EXIT(a) do { perror(a); exit(1); } while(0)
-#define RECORD_LEN FROM_LEN + CONTENT_LEN + 5
+#define RECORD_LEN FROM_LEN + CONTENT_LEN
 #define BUFFER_SIZE 10 * RECORD_LEN
 
 typedef struct {
@@ -29,7 +29,6 @@ typedef struct {
     size_t buf_len;  // bytes used by buf
     int id;
     int status;
-    char FROM[FROM_LEN];
 } request;
 
 enum status {
@@ -42,8 +41,7 @@ enum status {
 server svr;  // server
 request* requestP = NULL;  // point to a list of requests
 int maxfd;  // size of open file descriptor table, size of request list
-
-
+int last = 0;
 
 // initailize a server, exit for error
 static void init_server(unsigned short port);
@@ -56,13 +54,13 @@ static void free_request(request* reqP);
 
 int check_listen_fd();
 
-void handleWaiting(int curFd);
+void handleWaiting(int curFd, int BulletinFd);
 
 void handlePostFrom(int curFd, int BulletinFd);
 
 void handlePostContent(int curFd, int BulletinFd);
 
-void handlePull(int curFd);
+void handlePull(int curFd, int BulletinFd);
 
 int main(int argc, char** argv) {
 
@@ -126,7 +124,7 @@ int main(int argc, char** argv) {
                     recv(requestP[curFd].conn_fd, requestP[curFd].buf, BUFFER_SIZE, 0);
                     switch (requestP[curFd].status) {
                         case WAITING:
-                            handleWaiting(curFd);
+                            handleWaiting(curFd, BulletinFd);
                             break;
                         case POST_FROM:
                             handlePostFrom(curFd, BulletinFd);
@@ -134,11 +132,10 @@ int main(int argc, char** argv) {
                         case POST_CONTENT:
                             handlePostContent(curFd, BulletinFd);
                             break;
-                        case PULL:
-                            handlePull(curFd);
+                        case PULL: //check writeFdArray
+                            handlePull(curFd, BulletinFd);
                             break;
                     }
-                    // fprintf(stderr, "-1\n");
                     totalFds--;
                 }
                 curFd++;
@@ -158,37 +155,57 @@ int check_listen_fd() {
     return poll(fdArray, 1, 5);
 }
 
-void handleWaiting(int curFd) {
+void handleWaiting(int curFd, int BulletinFd) {
     if (strcmp(requestP[curFd].buf, "post") == 0) {
         requestP[curFd].status = POST_FROM;
-        strcpy(requestP[curFd].buf, "");
+        last++;
+        memset(requestP[curFd].buf, 0, sizeof(requestP[curFd].buf));
     } else if (strcmp(requestP[curFd].buf, "pull") == 0) {
-        requestP[curFd].status = PULL;
-        strcpy(requestP[curFd].buf, "");
+        lseek(BulletinFd, 0, SEEK_SET);
+        // read(BulletinFd, requestP[curFd].buf, 20);
+        read(BulletinFd, requestP[curFd].buf, FROM_LEN);
+        printf("%s", requestP[curFd].buf);
+        char str[10] = "abc";
+        strcat(str, requestP[curFd].buf);
+        fprintf(stderr, "%s", requestP[curFd].buf);
+        send(curFd, requestP[curFd].buf, BUFFER_SIZE, 0);
+        memset(requestP[curFd].buf, 0, sizeof(requestP[curFd].buf));
+        // requestP[curFd].status = PULL;
+        // memset(requestP[curFd].buf, 0, sizeof(requestP[curFd].buf));
     } else if (strcmp(requestP[curFd].buf, "exit") == 0) {
         close(requestP[curFd].conn_fd);
-        strcpy(requestP[curFd].buf, "");
+        memset(requestP[curFd].buf, 0, sizeof(requestP[curFd].buf));
     }
 }
 
 void handlePostFrom(int curFd, int BulletinFd) {
-    lseek(BulletinFd, RECORD_LEN * (curFd - 5), SEEK_SET);
-    write(BulletinFd, requestP[curFd].buf, strlen(requestP[curFd].buf));
+    lseek(BulletinFd, RECORD_LEN * last, SEEK_SET);
+    write(BulletinFd, requestP[curFd].buf, FROM_LEN);
     requestP[curFd].status = POST_CONTENT;
-    strcpy(requestP[curFd].FROM, requestP[curFd].buf);
-    strcpy(requestP[curFd].buf, "");
+    memset(requestP[curFd].buf, 0, sizeof(requestP[curFd].buf));
 }
 
 void handlePostContent(int curFd, int BulletinFd) {
-    lseek(BulletinFd, RECORD_LEN * (curFd - 5) + FROM_LEN + 2, SEEK_SET);
-    write(BulletinFd, requestP[curFd].buf, strlen(requestP[curFd].buf));
+    lseek(BulletinFd, RECORD_LEN * last + FROM_LEN, SEEK_SET);
+    write(BulletinFd, requestP[curFd].buf, CONTENT_LEN);
+    memset(requestP[curFd].buf, 0, sizeof(requestP[curFd].buf));
     requestP[curFd].status = WAITING;
-    fprintf(stderr, "[Log] Receive post from %s", requestP[curFd].FROM);
-    strcpy(requestP[curFd].buf, "");
+    lseek(BulletinFd, RECORD_LEN * last, SEEK_SET);
+    read(BulletinFd, requestP[curFd].buf, FROM_LEN);
+    printf("[Log] Receive post from %s", requestP[curFd].buf);
+    memset(requestP[curFd].buf, 0, sizeof(requestP[curFd].buf));
 }
 
-void handlePull(int curFd) {
-
+void handlePull(int curFd, int BulletinFd) {
+    lseek(BulletinFd, 0, SEEK_SET);
+    // read(BulletinFd, requestP[curFd].buf, 20);
+    read(BulletinFd, requestP[curFd].buf, FROM_LEN);
+    printf("%s", requestP[curFd].buf);
+    char str[10] = "abc";
+    strcat(str, requestP[curFd].buf);
+    fprintf(stderr, "%s", requestP[curFd].buf);
+    send(curFd, requestP[curFd].buf, BUFFER_SIZE, 0);
+    memset(requestP[curFd].buf, 0, sizeof(requestP[curFd].buf));
 }
 
 
