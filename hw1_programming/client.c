@@ -8,7 +8,7 @@
 #include <arpa/inet.h>
 
 #define ERR_EXIT(a) do { perror(a); exit(1); } while(0)
-#define BUFFER_SIZE 512
+#define BUFFER_SIZE 10 * (FROM_LEN + CONTENT_LEN + 5)
 
 typedef struct {
     char* ip; // server's ip
@@ -21,6 +21,8 @@ typedef struct {
 client cli;
 static void init_client(char** argv);
 
+void pull();
+
 int main(int argc, char** argv){
     
     // Parse args.
@@ -32,10 +34,45 @@ int main(int argc, char** argv){
     init_client(argv);
     fprintf(stderr, "connect to %s %d\n", cli.ip, cli.port);
 
+    printf("==============================\nWelcome to CSIE Bulletin board\n==============================\n");
+    // recv(cli.conn_fd, cli.buf, BUFFER_SIZE, 0);
+    strcpy(cli.buf, "");
+    printf("%s\n", cli.buf);
+    printf("==============================\n");
+
     while(1){
         // TODO: handle user's input
+        printf("Please enter your command (post/pull/exit): ");
+        scanf("%s", cli.buf);
+        if (strcmp(cli.buf, "post") == 0) {
+            send(cli.conn_fd, cli.buf, strlen(cli.buf), 0);
+            printf("FROM: ");
+            scanf("%s", cli.buf);
+            strcat(cli.buf, "\n");
+            send(cli.conn_fd, cli.buf, strlen(cli.buf), 0);
+            // recv(cli.conn_fd, cli.buf, BUFFER_SIZE, 0);
+            // printf("%s", cli.buf);
+            strcpy(cli.buf, "");
+            printf("CONTENT:\n");
+            scanf("%s", cli.buf);
+            strcat(cli.buf, "\n\n");
+            send(cli.conn_fd, cli.buf, strlen(cli.buf), 0);
+            // recv(cli.conn_fd, cli.buf, BUFFER_SIZE, 0);
+            // printf("%s", cli.buf);
+            strcpy(cli.buf, "");
+        } else if (strcmp(cli.buf, "pull") == 0) {
+            // send(cli.conn_fd, cli.buf, strlen(cli.buf), 0);
+            // recv(cli.conn_fd, cli.buf, BUFFER_SIZE, 0);
+            printf("%s", cli.buf);
+            strcpy(cli.buf, "");
+        } else if (strcmp(cli.buf, "exit") == 0) {
+            send(cli.conn_fd, cli.buf, strlen(cli.buf), 0);
+            break;
+        }
+        printf("==============================\n");
     }
- 
+    close(cli.conn_fd);
+    return 0;
 }
 
 static void init_client(char** argv){
@@ -66,4 +103,8 @@ static void init_client(char** argv){
     }
 
     return;
+}
+
+void pull() {
+    
 }

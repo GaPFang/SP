@@ -9,9 +9,12 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <netdb.h>
+#include <poll.h>
+#include <stdbool.h>
 
 #define ERR_EXIT(a) do { perror(a); exit(1); } while(0)
-#define BUFFER_SIZE 512
+#define RECORD_LEN FROM_LEN + CONTENT_LEN + 5
+#define BUFFER_SIZE 10 * RECORD_LEN
 
 typedef struct {
     char hostname[512];  // server's hostname
@@ -25,11 +28,22 @@ typedef struct {
     char buf[BUFFER_SIZE];  // data sent by/to client
     size_t buf_len;  // bytes used by buf
     int id;
+    int status;
+    char FROM[FROM_LEN];
 } request;
+
+enum status {
+    WAITING,
+    POST_FROM,
+    POST_CONTENT,
+    PULL,
+};
 
 server svr;  // server
 request* requestP = NULL;  // point to a list of requests
 int maxfd;  // size of open file descriptor table, size of request list
+
+
 
 // initailize a server, exit for error
 static void init_server(unsigned short port);
@@ -40,13 +54,23 @@ static void init_request(request* reqP);
 // free resources used by a request instance
 static void free_request(request* reqP);
 
+int check_listen_fd();
+
+void handleWaiting(int curFd);
+
+void handlePostFrom(int curFd, int BulletinFd);
+
+void handlePostContent(int curFd, int BulletinFd);
+
+void handlePull(int curFd);
+
 int main(int argc, char** argv) {
 
     // Parse args.
-    if (argc != 2) {
-        ERR_EXIT("usage: [port]");
-        exit(1);
-    }
+    // if (argc != 2) {
+    //     ERR_EXIT("usage: [port]");
+    //     exit(1);
+    // }
 
     struct sockaddr_in cliaddr;  // used by accept()
     int clilen;
@@ -57,37 +81,116 @@ int main(int argc, char** argv) {
     int buf_len;
 
     // Initialize server
-    init_server((unsigned short) atoi(argv[1]));
+    // init_server((unsigned short) atoi(argv[1]));
+    init_server(8888);
+
+    int BulletinFd = open("./BulletinBoard.txt", O_RDWR | O_CREAT, 0666);
+    int largestFd  = BulletinFd + 1;
+
+    struct pollfd *readFdArray = (struct pollfd *)malloc(sizeof(struct pollfd) * maxfd);
 
     // Loop for handling connections
     fprintf(stderr, "\nstarting on %.80s, port %d, fd %d, maxconn %d...\n", svr.hostname, svr.port, svr.listen_fd, maxfd);
 
     while (1) {
         // TODO: Add IO multiplexing
-        
-        // Check new connection
-        clilen = sizeof(cliaddr);
-        conn_fd = accept(svr.listen_fd, (struct sockaddr*)&cliaddr, (socklen_t*)&clilen);
-        if (conn_fd < 0) {
-            if (errno == EINTR || errno == EAGAIN) continue;  // try again
-            if (errno == ENFILE) {
-                (void) fprintf(stderr, "out of file descriptor table ... (maxconn %d)\n", maxfd);
-                continue;
+        if (check_listen_fd()) {
+            // Check new connection
+            clilen = sizeof(cliaddr);
+            conn_fd = accept(svr.listen_fd, (struct sockaddr*)&cliaddr, (socklen_t*)&clilen);
+            if (conn_fd < 0) {
+                if (errno == EINTR || errno == EAGAIN) continue;  // try again
+                if (errno == ENFILE) {
+                    (void) fprintf(stderr, "out of file descriptor table ... (maxconn %d)\n", maxfd);
+                    continue;
+                }
+                ERR_EXIT("accept");
             }
-            ERR_EXIT("accept");
+            requestP[conn_fd].conn_fd = conn_fd;
+            requestP[conn_fd].status = WAITING;
+            readFdArray[conn_fd - BulletinFd - 1].fd = conn_fd;
+            readFdArray[conn_fd - BulletinFd - 1].events = POLLIN;
+            if (conn_fd > largestFd) largestFd = conn_fd;
+            strcpy(requestP[conn_fd].host, inet_ntoa(cliaddr.sin_addr));
+            fprintf(stderr, "getting a new request... fd %d from %s\n", conn_fd, requestP[conn_fd].host);
         }
-        requestP[conn_fd].conn_fd = conn_fd;
-        strcpy(requestP[conn_fd].host, inet_ntoa(cliaddr.sin_addr));
-        fprintf(stderr, "getting a new request... fd %d from %s\n", conn_fd, requestP[conn_fd].host);
 
         // TODO: handle requests from clients
-
-        close(requestP[conn_fd].conn_fd);
-        free_request(&requestP[conn_fd]);
+        int totalFds = poll(readFdArray, largestFd  - BulletinFd, 5);
+        // if (totalFds) fprintf(stderr, "%d\n", totalFds);
+        if (totalFds) {
+            int curFd = BulletinFd + 1;
+            while (totalFds) {
+                // fprintf(stderr, "%d\n", totalFds);
+                if (readFdArray[curFd - BulletinFd - 1].revents) {
+                    recv(requestP[curFd].conn_fd, requestP[curFd].buf, BUFFER_SIZE, 0);
+                    switch (requestP[curFd].status) {
+                        case WAITING:
+                            handleWaiting(curFd);
+                            break;
+                        case POST_FROM:
+                            handlePostFrom(curFd, BulletinFd);
+                            break;
+                        case POST_CONTENT:
+                            handlePostContent(curFd, BulletinFd);
+                            break;
+                        case PULL:
+                            handlePull(curFd);
+                            break;
+                    }
+                    // fprintf(stderr, "-1\n");
+                    totalFds--;
+                }
+                curFd++;
+            }
+        }
     }
+    close(requestP[conn_fd].conn_fd);
+    free_request(&requestP[conn_fd]);
     free(requestP);
     return 0;
 }
+
+int check_listen_fd() {
+    struct pollfd fdArray[1];
+    fdArray[0].fd = svr.listen_fd;
+    fdArray[0].events = POLLIN;
+    return poll(fdArray, 1, 5);
+}
+
+void handleWaiting(int curFd) {
+    if (strcmp(requestP[curFd].buf, "post") == 0) {
+        requestP[curFd].status = POST_FROM;
+        strcpy(requestP[curFd].buf, "");
+    } else if (strcmp(requestP[curFd].buf, "pull") == 0) {
+        requestP[curFd].status = PULL;
+        strcpy(requestP[curFd].buf, "");
+    } else if (strcmp(requestP[curFd].buf, "exit") == 0) {
+        close(requestP[curFd].conn_fd);
+        strcpy(requestP[curFd].buf, "");
+    }
+}
+
+void handlePostFrom(int curFd, int BulletinFd) {
+    lseek(BulletinFd, RECORD_LEN * (curFd - 5), SEEK_SET);
+    write(BulletinFd, requestP[curFd].buf, strlen(requestP[curFd].buf));
+    requestP[curFd].status = POST_CONTENT;
+    strcpy(requestP[curFd].FROM, requestP[curFd].buf);
+    strcpy(requestP[curFd].buf, "");
+}
+
+void handlePostContent(int curFd, int BulletinFd) {
+    lseek(BulletinFd, RECORD_LEN * (curFd - 5) + FROM_LEN + 2, SEEK_SET);
+    write(BulletinFd, requestP[curFd].buf, strlen(requestP[curFd].buf));
+    requestP[curFd].status = WAITING;
+    fprintf(stderr, "[Log] Receive post from %s", requestP[curFd].FROM);
+    strcpy(requestP[curFd].buf, "");
+}
+
+void handlePull(int curFd) {
+
+}
+
 
 // ======================================================================================================
 // You don't need to know how the following codes are working
