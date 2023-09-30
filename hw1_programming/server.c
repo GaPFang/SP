@@ -14,7 +14,7 @@
 
 #define ERR_EXIT(a) do { perror(a); exit(1); } while(0)
 #define RECORD_LEN (FROM_LEN + CONTENT_LEN)
-#define BUFFER_SIZE (10 * RECORD_LEN)
+#define BUFFER_SIZE (RECORD_NUM * RECORD_LEN)
 
 typedef struct {
     char hostname[512];  // server's hostname
@@ -47,7 +47,7 @@ int maxfd;  // size of open file descriptor table, size of request list
 int last = -1;
 bool writeLocked[11];
 
-struct flock readLock[10], writeLock[10];
+struct flock readLock[RECORD_NUM], writeLock[RECORD_NUM];
 
 // initailize a server, exit for error
 static void init_server(unsigned short port);
@@ -88,7 +88,7 @@ int main(int argc, char** argv) {
     char buf[BUFFER_SIZE];
     int buf_len;
 
-    for (int i = 0; i < 10; i++) {
+    for (int i = 0; i < RECORD_NUM; i++) {
         readLock[i].l_len = RECORD_LEN;
         readLock[i].l_type = F_RDLCK;
         readLock[i].l_whence = SEEK_SET;
@@ -191,10 +191,9 @@ int check_listen_fd() {
 
 void findPostNumber(int curFd, int BulletinFd) {
     for (int i = 0; i <= 20; i++) {
-        last = (last + 1) % 10;
-        if (i / 10 == 0) {
+        last = (last + 1) % RECORD_NUM;
+        if (i / RECORD_NUM == 0) {
             pread(BulletinFd, requestP[curFd].buf, FROM_LEN, RECORD_LEN * last);
-            fprintf(stderr, "%s\n", requestP[curFd].buf);
             if (strcmp(requestP[curFd].buf, "") == 0) {
                 if (writeLocked[last]) continue;
                 writeLock[last].l_start = RECORD_LEN * last;
@@ -204,12 +203,10 @@ void findPostNumber(int curFd, int BulletinFd) {
                     requestP[curFd].status = POST_FROM;
                     memset(requestP[curFd].buf, 0, sizeof(requestP[curFd].buf));
                     send(curFd, "OK", BUFFER_SIZE, 0);
-                    fprintf(stderr, "%d\n", last);
-                    fprintf(stderr, "%d\n", requestP[curFd].post_number);
                     break;
                 }
             }
-        } else if (i / 10 == 1) {
+        } else if (i / RECORD_NUM == 1) {
             if (writeLocked[last]) continue;
             writeLock[last].l_start = RECORD_LEN * last;
             if (fcntl(BulletinFd, F_SETLK, &writeLock[last]) == 0) {
@@ -218,8 +215,6 @@ void findPostNumber(int curFd, int BulletinFd) {
                 requestP[curFd].status = POST_FROM;
                 memset(requestP[curFd].buf, 0, sizeof(requestP[curFd].buf));
                 send(curFd, "OK", BUFFER_SIZE, 0);
-                fprintf(stderr, "%d\n", last);
-                fprintf(stderr, "%d\n", requestP[curFd].post_number);
                 break;
             }
         } else {
@@ -257,7 +252,7 @@ void handlePostFrom(int curFd, int BulletinFd) {
 }
 
 void handlePostContent(int curFd, int BulletinFd) {
-    pwrite(BulletinFd, requestP[curFd].buf, BUFFER_SIZE, RECORD_LEN * requestP[curFd].post_number + FROM_LEN);
+    pwrite(BulletinFd, requestP[curFd].buf, CONTENT_LEN, RECORD_LEN * requestP[curFd].post_number + FROM_LEN);
     memset(requestP[curFd].buf, 0, sizeof(requestP[curFd].buf));
     pread(BulletinFd, requestP[curFd].buf, FROM_LEN, RECORD_LEN * requestP[curFd].post_number);
     writeLock[requestP[curFd].post_number].l_type = F_UNLCK;

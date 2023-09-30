@@ -8,8 +8,10 @@ int main() {
     // temp[0].fd = 2;
     // temp[0].events = 0;
     // poll(temp, 1, 10000);
+    char buf[10] = "apple";
 
     int fd = open("./BulletinBoard.txt", O_WRONLY);
+    pwrite(fd, buf, 5, 0);
     struct flock lock1, lock2;
     lock1.l_len = 5;
     lock1.l_start = 0;
