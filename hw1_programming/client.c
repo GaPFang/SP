@@ -6,9 +6,10 @@
 #include <errno.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
+#include <poll.h>
 
 #define ERR_EXIT(a) do { perror(a); exit(1); } while(0)
-#define BUFFER_SIZE 10 * (FROM_LEN + CONTENT_LEN)
+#define BUFFER_SIZE (10 * (FROM_LEN + CONTENT_LEN))
 
 typedef struct {
     char* ip; // server's ip
@@ -19,9 +20,14 @@ typedef struct {
 } client;
 
 client cli;
+
+struct pollfd fdArray[1];
+
 static void init_client(char** argv);
 
 void pull();
+
+void post();
 
 int main(int argc, char** argv){
     
@@ -33,11 +39,13 @@ int main(int argc, char** argv){
     // Handling connection
     init_client(argv);
     fprintf(stderr, "connect to %s %d\n", cli.ip, cli.port);
+    memset(cli.buf, 0, sizeof(cli.buf));
+
+    fdArray[0].fd = cli.conn_fd;
+    fdArray[0].events = POLLIN;
 
     printf("==============================\nWelcome to CSIE Bulletin board\n==============================\n");
-    // recv(cli.conn_fd, cli.buf, BUFFER_SIZE, 0);
-    memset(cli.buf, 0, sizeof(cli.buf));
-    printf("%s\n", cli.buf);
+    pull();
     printf("==============================\n");
 
     while(1){
@@ -45,28 +53,12 @@ int main(int argc, char** argv){
         printf("Please enter your command (post/pull/exit): ");
         scanf("%s", cli.buf);
         if (strcmp(cli.buf, "post") == 0) {
-            send(cli.conn_fd, cli.buf, strlen(cli.buf), 0);
-            memset(cli.buf, 0, sizeof(cli.buf));
-            printf("FROM: ");
-            scanf("%s", cli.buf);
-            strcat(cli.buf, "\n");
-            send(cli.conn_fd, cli.buf, strlen(cli.buf), 0);
-            // recv(cli.conn_fd, cli.buf, BUFFER_SIZE, 0);
-            // printf("%s", cli.buf);
-            memset(cli.buf, 0, sizeof(cli.buf));
-            printf("CONTENT:\n");
-            scanf("%s", cli.buf);
-            strcat(cli.buf, "\n");
-            send(cli.conn_fd, cli.buf, strlen(cli.buf), 0);
-            // recv(cli.conn_fd, cli.buf, BUFFER_SIZE, 0);
-            // printf("%s", cli.buf);
-            memset(cli.buf, 0, sizeof(cli.buf));
+            post();
         } else if (strcmp(cli.buf, "pull") == 0) {
-            send(cli.conn_fd, cli.buf, strlen(cli.buf), 0);
-            // recv(cli.conn_fd, cli.buf, BUFFER_SIZE, 0);
-            // printf("%s", cli.buf);
-            memset(cli.buf, 0, sizeof(cli.buf));
+            pull();
         } else if (strcmp(cli.buf, "exit") == 0) {
+            fdArray[0].events = POLLOUT;
+            poll(fdArray, 1, -1);
             send(cli.conn_fd, cli.buf, strlen(cli.buf), 0);
             break;
         }
@@ -74,6 +66,47 @@ int main(int argc, char** argv){
     }
     close(cli.conn_fd);
     return 0;
+}
+
+void post() {
+    send(cli.conn_fd, cli.buf, strlen(cli.buf), 0);
+    memset(cli.buf, 0, sizeof(cli.buf));
+    poll(fdArray, 1, -1);
+    recv(cli.conn_fd, cli.buf, BUFFER_SIZE, 0);
+    if (strcmp(cli.buf, "[Error] Maximum posting limit exceeded") == 0) {
+        printf("%s\n==============================\n", cli.buf);
+    } else {
+        memset(cli.buf, 0, sizeof(cli.buf));
+        printf("FROM: ");
+        scanf("%s", cli.buf);
+        strcat(cli.buf, "\n");
+        send(cli.conn_fd, cli.buf, strlen(cli.buf), 0);
+        memset(cli.buf, 0, sizeof(cli.buf));
+        printf("CONTENT:\n");
+        scanf("%s", cli.buf);
+        strcat(cli.buf, "\n");
+        send(cli.conn_fd, cli.buf, strlen(cli.buf), 0);
+        memset(cli.buf, 0, sizeof(cli.buf));
+    }
+}
+
+void pull() {
+    send(cli.conn_fd, cli.buf, strlen(cli.buf), 0);
+    memset(cli.buf, 0, sizeof(cli.buf));
+    fdArray[0].events = POLLIN;
+    poll(fdArray, 1, -1);
+    recv(cli.conn_fd, cli.buf, FROM_LEN, 0);
+    while (strcmp(cli.buf, "end") != 0) {
+        printf("FROM: %s", cli.buf);
+        memset(cli.buf, 0, sizeof(cli.buf));
+        poll(fdArray, 1, -1);
+        recv(cli.conn_fd, cli.buf, CONTENT_LEN, 0);
+        printf("CONTENT:\n%s", cli.buf);
+        memset(cli.buf, 0, sizeof(cli.buf));
+        poll(fdArray, 1, -1);
+        recv(cli.conn_fd, cli.buf, FROM_LEN, 0);
+    }
+    memset(cli.buf, 0, sizeof(cli.buf));
 }
 
 static void init_client(char** argv){
@@ -104,8 +137,4 @@ static void init_client(char** argv){
     }
 
     return;
-}
-
-void pull() {
-    
 }
