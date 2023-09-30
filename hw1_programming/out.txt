@@ -1,5 +1,3 @@
-[Log] Receive post from a
-[Log] Receive post from abcd
-[Log] Receive post from .O_O
-[Log] Receive post from bcde
-[Log] Receive post from AB_D
+[Warning] Try to access locked post - 2
+[Warning] Try to access locked post - 6
+[Warning] Try to access locked post - 21
