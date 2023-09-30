@@ -46,7 +46,6 @@ int main(int argc, char** argv){
 
     printf("==============================\nWelcome to CSIE Bulletin board\n==============================\n");
     pull();
-    printf("==============================\n");
 
     while(1){
         // TODO: handle user's input
@@ -62,7 +61,6 @@ int main(int argc, char** argv){
             send(cli.conn_fd, cli.buf, strlen(cli.buf), 0);
             break;
         }
-        printf("==============================\n");
     }
     close(cli.conn_fd);
     return 0;
@@ -107,6 +105,7 @@ void pull() {
         recv(cli.conn_fd, cli.buf, FROM_LEN, 0);
     }
     memset(cli.buf, 0, sizeof(cli.buf));
+    printf("==============================\n");
 }
 
 static void init_client(char** argv){
