@@ -74,7 +74,7 @@ void post() {
     poll(fdArray, 1, -1);
     recv(cli.conn_fd, cli.buf, BUFFER_SIZE, 0);
     if (strcmp(cli.buf, "[Error] Maximum posting limit exceeded") == 0) {
-        printf("%s\n==============================\n", cli.buf);
+        printf("%s\n", cli.buf);
     } else {
         memset(cli.buf, 0, sizeof(cli.buf));
         printf("FROM: ");

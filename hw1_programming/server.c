@@ -75,10 +75,10 @@ void handlePullContent(int curFd, int BulletinFd);
 int main(int argc, char** argv) {
 
     // Parse args.
-    // if (argc != 2) {
-    //     ERR_EXIT("usage: [port]");
-    //     exit(1);
-    // }
+    if (argc != 2) {
+        ERR_EXIT("usage: [port]");
+        exit(1);
+    }
 
     struct sockaddr_in cliaddr;  // used by accept()
     int clilen;
@@ -100,8 +100,7 @@ int main(int argc, char** argv) {
     writeLocked[11] = false;
 
     // Initialize server
-    // init_server((unsigned short) atoi(argv[1]));
-    init_server(8888);
+    init_server((unsigned short) atoi(argv[1]));
 
     int BulletinFd = open("./BulletinBoard.txt", O_RDWR | O_CREAT, 0666);
     int largestFd  = BulletinFd + 1;
@@ -128,6 +127,7 @@ int main(int argc, char** argv) {
             }
             requestP[conn_fd].conn_fd = conn_fd;
             requestP[conn_fd].status = PULL_FROM;
+            requestP[conn_fd].pull_number = 0;
             requestP[conn_fd].lock_count = 0;
             readFdArray[conn_fd - BulletinFd - 1].fd = conn_fd;
             readFdArray[conn_fd - BulletinFd - 1].events = POLLIN;
@@ -266,10 +266,12 @@ void handlePostContent(int curFd, int BulletinFd) {
 
 void handlePullFrom(int curFd, int BulletinFd, struct pollfd *writeFdArray) {
     if (writeLocked[requestP[curFd].pull_number]) {
+        requestP[curFd].pull_number++;
         requestP[curFd].lock_count++;
         return;
     }
     if (fcntl(BulletinFd, F_SETLK, &writeLock[requestP[curFd].pull_number]) != 0) {
+        requestP[curFd].pull_number++;
         requestP[curFd].lock_count++;
         return;
     }
