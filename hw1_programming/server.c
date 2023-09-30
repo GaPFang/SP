@@ -287,10 +287,6 @@ void handlePullFrom(int curFd, int BulletinFd, struct pollfd *writeFdArray) {
         fcntl(BulletinFd, F_SETLK, &readLock[requestP[curFd].pull_number]);
         readLock[requestP[curFd].pull_number].l_type = F_RDLCK;
         send(curFd, "end", FROM_LEN, 0);
-        // for (int i = 0; i < 11; i++) {
-        //     fcntl(BulletinFd, F_GETLK, &readLock[i]);
-        //     fprintf(stderr, "%d ", readLock[i].l_type);
-        // }
         writeFdArray[curFd].events = 0;
         requestP[curFd].status = WAITING;
         if (requestP[curFd].lock_count) {
@@ -299,8 +295,12 @@ void handlePullFrom(int curFd, int BulletinFd, struct pollfd *writeFdArray) {
         }
     } else {
         send(curFd, requestP[curFd].buf, FROM_LEN, 0);
-        requestP[curFd].status = PULL_CONTENT;
         memset(requestP[curFd].buf, 0, FROM_LEN);
+        requestP[curFd].status = PULL_CONTENT;
+        // struct pollfd temp[1];
+        //     temp[0].fd = curFd;
+        //     temp[0].events = POLLOUT;
+        //     poll(temp, 1, -1);
     }
 }
 
