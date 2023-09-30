@@ -6,6 +6,7 @@
         "netdb.h": "c",
         "socket.h": "c",
         "unistd.h": "c",
-        "random": "c"
+        "random": "c",
+        "stdio.h": "c"
     }
 }

@@ -54,6 +54,7 @@ int main(int argc, char** argv){
         if (strcmp(cli.buf, "post") == 0) {
             post();
         } else if (strcmp(cli.buf, "pull") == 0) {
+            printf("==============================\n");
             pull();
         } else if (strcmp(cli.buf, "exit") == 0) {
             fdArray[0].events = POLLOUT;
@@ -77,12 +78,12 @@ void post() {
         memset(cli.buf, 0, sizeof(cli.buf));
         printf("FROM: ");
         scanf("%s", cli.buf);
-        strcat(cli.buf, "\n");
+        strcat(cli.buf, "\0");
         send(cli.conn_fd, cli.buf, strlen(cli.buf), 0);
         memset(cli.buf, 0, sizeof(cli.buf));
         printf("CONTENT:\n");
         scanf("%s", cli.buf);
-        strcat(cli.buf, "\n");
+        strcat(cli.buf, "\0");
         send(cli.conn_fd, cli.buf, strlen(cli.buf), 0);
         memset(cli.buf, 0, sizeof(cli.buf));
     }
@@ -95,11 +96,11 @@ void pull() {
     poll(fdArray, 1, -1);
     recv(cli.conn_fd, cli.buf, FROM_LEN, 0);
     while (strcmp(cli.buf, "end") != 0) {
-        printf("FROM: %s", cli.buf);
+        printf("FROM: %s\n", cli.buf);
         memset(cli.buf, 0, sizeof(cli.buf));
         poll(fdArray, 1, -1);
         recv(cli.conn_fd, cli.buf, CONTENT_LEN, 0);
-        printf("CONTENT:\n%s", cli.buf);
+        printf("CONTENT:\n%s\n", cli.buf);
         memset(cli.buf, 0, sizeof(cli.buf));
         poll(fdArray, 1, -1);
         recv(cli.conn_fd, cli.buf, FROM_LEN, 0);

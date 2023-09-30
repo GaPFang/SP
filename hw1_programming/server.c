@@ -92,17 +92,20 @@ int main(int argc, char** argv) {
         readLock[i].l_len = RECORD_LEN;
         readLock[i].l_type = F_RDLCK;
         readLock[i].l_whence = SEEK_SET;
+        readLock[i].l_start = i * RECORD_LEN;
         writeLock[i].l_len = RECORD_LEN;
         writeLock[i].l_type = F_WRLCK;
         writeLock[i].l_whence = SEEK_SET;
+        writeLock[i].l_start = i * RECORD_LEN;
         writeLocked[i] = false;
     }
     writeLocked[11] = false;
 
     // Initialize server
     init_server((unsigned short) atoi(argv[1]));
+    // init_server(8888);
 
-    int BulletinFd = open("./BulletinBoard.txt", O_RDWR | O_CREAT, 0666);
+    int BulletinFd = open(RECORD_PATH, O_RDWR | O_CREAT, 0666);
     int largestFd  = BulletinFd + 1;
 
     struct pollfd *readFdArray = (struct pollfd *)malloc(sizeof(struct pollfd) * maxfd);
@@ -270,14 +273,24 @@ void handlePullFrom(int curFd, int BulletinFd, struct pollfd *writeFdArray) {
         requestP[curFd].lock_count++;
         return;
     }
-    if (fcntl(BulletinFd, F_SETLK, &writeLock[requestP[curFd].pull_number]) != 0) {
+    if (fcntl(BulletinFd, F_SETLK, &readLock[requestP[curFd].pull_number]) != 0) {
+        int num = requestP[curFd].pull_number;
+        fcntl(BulletinFd, F_GETLK, &readLock[requestP[curFd].pull_number]);
+        int num2 = readLock[requestP[curFd].pull_number].l_type;
         requestP[curFd].pull_number++;
         requestP[curFd].lock_count++;
         return;
     }
     pread(BulletinFd, requestP[curFd].buf, FROM_LEN, RECORD_LEN * requestP[curFd].pull_number);
     if (strcmp(requestP[curFd].buf, "") == 0) {
+        readLock[requestP[curFd].pull_number].l_type = F_UNLCK;
+        fcntl(BulletinFd, F_SETLK, &readLock[requestP[curFd].pull_number]);
+        readLock[requestP[curFd].pull_number].l_type = F_RDLCK;
         send(curFd, "end", FROM_LEN, 0);
+        // for (int i = 0; i < 11; i++) {
+        //     fcntl(BulletinFd, F_GETLK, &readLock[i]);
+        //     fprintf(stderr, "%d ", readLock[i].l_type);
+        // }
         writeFdArray[curFd].events = 0;
         requestP[curFd].status = WAITING;
         if (requestP[curFd].lock_count) {
