@@ -9,8 +9,8 @@
 #include <poll.h>
 
 #define ERR_EXIT(a) do { perror(a); exit(1); } while(0)
-// #define BUFFER_SIZE (RECORD_NUM * (FROM_LEN + CONTENT_LEN))
 #define RECORD_LEN (FROM_LEN + CONTENT_LEN)
+// #define BUFFER_SIZE (RECORD_NUM * RECORD_LEN)
 
 typedef struct {
     char* ip; // server's ip
@@ -40,7 +40,7 @@ int main(int argc, char** argv){
     // Handling connection
     init_client(argv);
     fprintf(stderr, "connect to %s %d\n", cli.ip, cli.port);
-    memset(cli.buf, 0, sizeof(cli.buf));
+    memset(cli.buf, 0, RECORD_LEN);
 
     fdArray[0].fd = cli.conn_fd;
     fdArray[0].events = POLLIN;
@@ -51,6 +51,7 @@ int main(int argc, char** argv){
     while(1){
         // TODO: handle user's input
         printf("Please enter your command (post/pull/exit): ");
+        memset(cli.buf, 0, RECORD_LEN);
         scanf("%s", cli.buf);
         if (strcmp(cli.buf, "post") == 0) {
             post();
@@ -70,43 +71,41 @@ int main(int argc, char** argv){
 
 void post() {
     send(cli.conn_fd, cli.buf, strlen(cli.buf), 0);
-    memset(cli.buf, 0, sizeof(cli.buf));
+    memset(cli.buf, 0, RECORD_LEN);
     poll(fdArray, 1, -1);
     recv(cli.conn_fd, cli.buf, RECORD_LEN, 0);
     if (strcmp(cli.buf, "[Error] Maximum posting limit exceeded") == 0) {
         printf("%s\n", cli.buf);
     } else {
-        memset(cli.buf, 0, sizeof(cli.buf));
+        memset(cli.buf, 0, RECORD_LEN);
         printf("FROM: ");
         scanf("%s", cli.buf);
         strcat(cli.buf, "\0");
         send(cli.conn_fd, cli.buf, strlen(cli.buf), 0);
-        memset(cli.buf, 0, sizeof(cli.buf));
+        memset(cli.buf, 0, RECORD_LEN);
         printf("CONTENT:\n");
         scanf("%s", cli.buf);
         strcat(cli.buf, "\0");
         send(cli.conn_fd, cli.buf, strlen(cli.buf), 0);
-        memset(cli.buf, 0, sizeof(cli.buf));
     }
 }
 
 void pull() {
     send(cli.conn_fd, cli.buf, strlen(cli.buf), 0);
-    memset(cli.buf, 0, sizeof(cli.buf));
+    memset(cli.buf, 0, RECORD_LEN);
     fdArray[0].events = POLLIN;
     poll(fdArray, 1, -1);
     recv(cli.conn_fd, cli.buf, FROM_LEN, 0);
     while (strcmp(cli.buf, "end") != 0) {
         printf("FROM: %s\n", cli.buf);
-        memset(cli.buf, 0, sizeof(cli.buf));
+        memset(cli.buf, 0, RECORD_LEN);
         poll(fdArray, 1, -1);
         recv(cli.conn_fd, cli.buf, CONTENT_LEN, 0);
         printf("CONTENT:\n%s\n", cli.buf);
-        memset(cli.buf, 0, sizeof(cli.buf));
+        memset(cli.buf, 0, RECORD_LEN);
         poll(fdArray, 1, -1);
         recv(cli.conn_fd, cli.buf, FROM_LEN, 0);
     }
-    memset(cli.buf, 0, sizeof(cli.buf));
     printf("==============================\n");
 }
 
