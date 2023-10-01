@@ -14,7 +14,7 @@
 
 #define ERR_EXIT(a) do { perror(a); exit(1); } while(0)
 #define RECORD_LEN (FROM_LEN + CONTENT_LEN)
-#define BUFFER_SIZE (RECORD_NUM * RECORD_LEN)
+// #define BUFFER_SIZE (RECORD_NUM * RECORD_LEN)
 
 typedef struct {
     char hostname[512];  // server's hostname
@@ -25,7 +25,7 @@ typedef struct {
 typedef struct {
     char host[512];  // client's host
     int conn_fd;  // fd to talk with client
-    char buf[BUFFER_SIZE];  // data sent by/to client
+    char buf[RECORD_LEN];  // data sent by/to client
     size_t buf_len;  // bytes used by buf
     int status;
     int post_number;
@@ -46,6 +46,7 @@ request* requestP = NULL;  // point to a list of requests
 int maxfd;  // size of open file descriptor table, size of request list
 int last = -1;
 bool writeLocked[RECORD_NUM];
+bool fulled = false;
 
 struct pollfd tempFdArray[1];
 
@@ -77,10 +78,10 @@ void handlePullContent(int curFd, int BulletinFd, struct pollfd *writeFdArray);
 int main(int argc, char** argv) {
 
     // Parse args.
-    if (argc != 2) {
-        ERR_EXIT("usage: [port]");
-        exit(1);
-    }
+    // if (argc != 2) {
+    //     ERR_EXIT("usage: [port]");
+    //     exit(1);
+    // }
 
     dup2(STDOUT_FILENO, STDERR_FILENO);
 
@@ -89,7 +90,7 @@ int main(int argc, char** argv) {
 
     int conn_fd;  // fd for a new connection with client
     int file_fd;  // fd for file that we open for reading
-    char buf[BUFFER_SIZE];
+    char buf[RECORD_LEN];
     int buf_len;
 
     for (int i = 0; i < RECORD_NUM; i++) {
@@ -105,7 +106,12 @@ int main(int argc, char** argv) {
     }
 
     // Initialize server
-    init_server((unsigned short) atoi(argv[1]));
+    if (argc == 2) {
+        init_server((unsigned short) atoi(argv[1]));
+    } else {
+        init_server(8888);
+    }
+    // init_server((unsigned short) atoi(argv[1]));
     // init_server(8888);
 
     int BulletinFd = open(RECORD_PATH, O_RDWR | O_CREAT, 0666);
@@ -196,11 +202,31 @@ int check_listen_fd() {
 }
 
 void findPostNumber(int curFd, int BulletinFd) {
-    for (int i = 0; i <= 20; i++) {
-        last = (last + 1) % RECORD_NUM;
-        if (i / RECORD_NUM == 0) {
+    if (!fulled) {
+        for (int i = 0; i < RECORD_NUM; i++) {
+            if (last == RECORD_NUM - 1) {
+                fulled = true;
+                break;
+            }
+            last = (last + 1) % RECORD_NUM;
             pread(BulletinFd, requestP[curFd].buf, FROM_LEN, RECORD_LEN * last);
             if (strcmp(requestP[curFd].buf, "") == 0) {
+                if (writeLocked[last]) continue;
+                if (fcntl(BulletinFd, F_SETLK, &writeLock[last]) == 0) {
+                    writeLocked[last] = true;
+                    requestP[curFd].post_number = last;
+                    requestP[curFd].status = POST_FROM;
+                    memset(requestP[curFd].buf, 0, sizeof(requestP[curFd].buf));
+                    send(curFd, "OK", RECORD_LEN, 0);
+                    break;
+                }
+            }
+        }
+    }
+    if (fulled) {
+        for (int i = 0; i <= RECORD_NUM; i++) {
+            last = (last + 1) % RECORD_NUM;
+            if (i != RECORD_NUM) {
                 if (writeLocked[last]) continue;
                 writeLock[last].l_start = RECORD_LEN * last;
                 if (fcntl(BulletinFd, F_SETLK, &writeLock[last]) == 0) {
@@ -208,28 +234,51 @@ void findPostNumber(int curFd, int BulletinFd) {
                     requestP[curFd].post_number = last;
                     requestP[curFd].status = POST_FROM;
                     memset(requestP[curFd].buf, 0, sizeof(requestP[curFd].buf));
-                    send(curFd, "OK", BUFFER_SIZE, 0);
+                    send(curFd, "OK", RECORD_LEN, 0);
                     break;
                 }
+            } else {
+                tempFdArray[0].fd = curFd;
+                tempFdArray[0].events = POLLOUT;
+                poll(tempFdArray, 1, -1);
+                send(curFd, "[Error] Maximum posting limit exceeded", RECORD_LEN, 0);
             }
-        } else if (i / RECORD_NUM == 1) {
-            if (writeLocked[last]) continue;
-            writeLock[last].l_start = RECORD_LEN * last;
-            if (fcntl(BulletinFd, F_SETLK, &writeLock[last]) == 0) {
-                writeLocked[last] = true;
-                requestP[curFd].post_number = last;
-                requestP[curFd].status = POST_FROM;
-                memset(requestP[curFd].buf, 0, sizeof(requestP[curFd].buf));
-                send(curFd, "OK", BUFFER_SIZE, 0);
-                break;
-            }
-        } else {
-            tempFdArray[0].fd = curFd;
-            tempFdArray[0].events = POLLOUT;
-            poll(tempFdArray, 1, -1);
-            send(curFd, "[Error] Maximum posting limit exceeded", BUFFER_SIZE, 0);
         }
     }
+    // for (int i = 0; i <= 20; i++) {
+    //     last = (last + 1) % RECORD_NUM;
+    //     if (i / RECORD_NUM == 0) {
+    //         pread(BulletinFd, requestP[curFd].buf, FROM_LEN, RECORD_LEN * last);
+    //         if (strcmp(requestP[curFd].buf, "") == 0) {
+    //             if (writeLocked[last]) continue;
+    //             writeLock[last].l_start = RECORD_LEN * last;
+    //             if (fcntl(BulletinFd, F_SETLK, &writeLock[last]) == 0) {
+    //                 writeLocked[last] = true;
+    //                 requestP[curFd].post_number = last;
+    //                 requestP[curFd].status = POST_FROM;
+    //                 memset(requestP[curFd].buf, 0, sizeof(requestP[curFd].buf));
+    //                 send(curFd, "OK", RECORD_LEN, 0);
+    //                 break;
+    //             }
+    //         }
+    //     } else if (i / RECORD_NUM == 1) {
+    //         if (writeLocked[last]) continue;
+    //         writeLock[last].l_start = RECORD_LEN * last;
+    //         if (fcntl(BulletinFd, F_SETLK, &writeLock[last]) == 0) {
+    //             writeLocked[last] = true;
+    //             requestP[curFd].post_number = last;
+    //             requestP[curFd].status = POST_FROM;
+    //             memset(requestP[curFd].buf, 0, sizeof(requestP[curFd].buf));
+    //             send(curFd, "OK", RECORD_LEN, 0);
+    //             break;
+    //         }
+    //     } else {
+    //         tempFdArray[0].fd = curFd;
+    //         tempFdArray[0].events = POLLOUT;
+    //         poll(tempFdArray, 1, -1);
+    //         send(curFd, "[Error] Maximum posting limit exceeded", RECORD_LEN, 0);
+    //     }
+    // }
 }
 
 void handleWaiting(int curFd, int BulletinFd, struct pollfd *readFdArray, struct pollfd *writeFdArray) {
@@ -274,12 +323,6 @@ void handlePostContent(int curFd, int BulletinFd) {
     requestP[curFd].status = WAITING;
     fprintf(stderr, "[Log] Receive post from %s\n", requestP[curFd].buf);
     memset(requestP[curFd].buf, 0, sizeof(requestP[curFd].buf));
-    tempFdArray[0].fd = curFd;
-    tempFdArray[0].events = POLLIN;
-    if (poll(tempFdArray, 1, 5)) {
-        recv(requestP[curFd].conn_fd, requestP[curFd].buf, RECORD_LEN, 0);
-        handlePostFrom(curFd, BulletinFd);
-    }
 }
 
 void handlePullFrom(int curFd, int BulletinFd, struct pollfd *writeFdArray) {

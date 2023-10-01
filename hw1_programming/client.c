@@ -9,13 +9,14 @@
 #include <poll.h>
 
 #define ERR_EXIT(a) do { perror(a); exit(1); } while(0)
-#define BUFFER_SIZE (10 * (FROM_LEN + CONTENT_LEN))
+// #define BUFFER_SIZE (RECORD_NUM * (FROM_LEN + CONTENT_LEN))
+#define RECORD_LEN (FROM_LEN + CONTENT_LEN)
 
 typedef struct {
     char* ip; // server's ip
     unsigned short port; // server's port
     int conn_fd; // fd to talk with server
-    char buf[BUFFER_SIZE]; // data sent by/to server
+    char buf[RECORD_LEN]; // data sent by/to server
     size_t buf_len; // bytes used by buf
 } client;
 
@@ -71,7 +72,7 @@ void post() {
     send(cli.conn_fd, cli.buf, strlen(cli.buf), 0);
     memset(cli.buf, 0, sizeof(cli.buf));
     poll(fdArray, 1, -1);
-    recv(cli.conn_fd, cli.buf, BUFFER_SIZE, 0);
+    recv(cli.conn_fd, cli.buf, RECORD_LEN, 0);
     if (strcmp(cli.buf, "[Error] Maximum posting limit exceeded") == 0) {
         printf("%s\n", cli.buf);
     } else {
