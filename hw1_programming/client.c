@@ -24,7 +24,7 @@ client cli;
 
 struct pollfd fdArray[1];
 
-static void init_client(char** argv);
+static void init_client(int argc, char** argv);
 
 void pull();
 
@@ -33,12 +33,12 @@ void post();
 int main(int argc, char** argv){
     
     // Parse args.
-    if(argc!=3){
-        ERR_EXIT("usage: [ip] [port]");
-    }
+    // if(argc!=3){
+    //     ERR_EXIT("usage: [ip] [port]");
+    // }
 
     // Handling connection
-    init_client(argv);
+    init_client(argc, argv);
     fprintf(stderr, "connect to %s %d\n", cli.ip, cli.port);
     memset(cli.buf, 0, RECORD_LEN);
 
@@ -74,8 +74,8 @@ void post() {
     memset(cli.buf, 0, RECORD_LEN);
     poll(fdArray, 1, -1);
     recv(cli.conn_fd, cli.buf, RECORD_LEN, 0);
-    if (strcmp(cli.buf, "[Error] Maximum posting limit exceeded") == 0) {
-        printf("%s\n", cli.buf);
+    if (strcmp(cli.buf, "X") == 0) {
+        printf("[Error] Maximum posting limit exceeded\n");
     } else {
         memset(cli.buf, 0, RECORD_LEN);
         printf("FROM: ");
@@ -109,14 +109,20 @@ void pull() {
     printf("==============================\n");
 }
 
-static void init_client(char** argv){
+static void init_client(int argc, char** argv){
     
-    cli.ip = argv[1];
+    if (argc!=3) {
+        cli.ip = "127.0.0.1";
+        cli.port = 8888;
+    } else {
+        cli.ip = argv[1];
 
-    if(atoi(argv[2])==0 || atoi(argv[2])>65536){
-        ERR_EXIT("Invalid port");
+        if(atoi(argv[2])==0 || atoi(argv[2])>65536){
+            ERR_EXIT("Invalid port");
+        }
+        cli.port=(unsigned short)atoi(argv[2]);
     }
-    cli.port=(unsigned short)atoi(argv[2]);
+    
 
     struct sockaddr_in servaddr;
     cli.conn_fd = socket(AF_INET, SOCK_STREAM, 0);

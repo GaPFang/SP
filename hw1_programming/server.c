@@ -202,10 +202,10 @@ int check_listen_fd() {
 void findPostNumber(int curFd, int BulletinFd) {
     if (!fulled) {
         for (int i = 0; i < RECORD_NUM; i++) {
+            last = (last + 1) % RECORD_NUM;
             if (last == RECORD_NUM - 1) {
                 fulled = true;
             }
-            last = (last + 1) % RECORD_NUM;
             memset(requestP[curFd].buf, 0, RECORD_LEN);
             pread(BulletinFd, requestP[curFd].buf, FROM_LEN, RECORD_LEN * last);
             if (strcmp(requestP[curFd].buf, "") == 0) {
@@ -220,7 +220,7 @@ void findPostNumber(int curFd, int BulletinFd) {
             }
         }
     }
-    if (fulled) {
+    if (fulled && requestP[curFd].status == WAITING) {
         for (int i = 0; i <= RECORD_NUM; i++) {
             last = (last + 1) % RECORD_NUM;
             if (i != RECORD_NUM) {
@@ -237,7 +237,7 @@ void findPostNumber(int curFd, int BulletinFd) {
                 tempFdArray[0].fd = curFd;
                 tempFdArray[0].events = POLLOUT;
                 poll(tempFdArray, 1, -1);
-                send(curFd, "[Error] Maximum posting limit exceeded", RECORD_LEN, 0);
+                send(curFd, "X", RECORD_LEN, 0);
             }
         }
     }
