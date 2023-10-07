@@ -46,7 +46,7 @@ request* requestP = NULL;  // point to a list of requests
 int maxfd;  // size of open file descriptor table, size of request list
 int last = -1;
 bool writeLocked[RECORD_NUM];
-bool fulled = false;
+// bool fulled = false;
 
 struct pollfd tempFdArray[1];
 
@@ -200,27 +200,7 @@ int check_listen_fd() {
 }
 
 void findPostNumber(int curFd, int BulletinFd) {
-    if (!fulled) {
-        for (int i = 0; i < RECORD_NUM; i++) {
-            last = (last + 1) % RECORD_NUM;
-            if (last == RECORD_NUM - 1) {
-                fulled = true;
-            }
-            memset(requestP[curFd].buf, 0, RECORD_LEN);
-            pread(BulletinFd, requestP[curFd].buf, FROM_LEN, RECORD_LEN * last);
-            if (strcmp(requestP[curFd].buf, "") == 0) {
-                if (writeLocked[last]) continue;
-                if (fcntl(BulletinFd, F_SETLK, &writeLock[last]) == 0) {
-                    writeLocked[last] = true;
-                    requestP[curFd].post_number = last;
-                    requestP[curFd].status = POST_FROM;
-                    send(curFd, "OK", RECORD_LEN, 0);
-                    break;
-                }
-            }
-        }
-    }
-    if (fulled && requestP[curFd].status == WAITING) {
+    if (requestP[curFd].status == WAITING) {
         for (int i = 0; i <= RECORD_NUM; i++) {
             last = (last + 1) % RECORD_NUM;
             if (i != RECORD_NUM) {

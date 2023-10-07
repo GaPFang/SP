@@ -1,3 +1,0 @@
-[Warning] Try to access locked post - 2
-[Warning] Try to access locked post - 6
-[Warning] Try to access locked post - 21
