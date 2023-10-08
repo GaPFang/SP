@@ -200,61 +200,25 @@ int check_listen_fd() {
 }
 
 void findPostNumber(int curFd, int BulletinFd) {
-    if (requestP[curFd].status == WAITING) {
-        for (int i = 0; i <= RECORD_NUM; i++) {
-            last = (last + 1) % RECORD_NUM;
-            if (i != RECORD_NUM) {
-                if (writeLocked[last]) continue;
-                writeLock[last].l_start = RECORD_LEN * last;
-                if (fcntl(BulletinFd, F_SETLK, &writeLock[last]) == 0) {
-                    writeLocked[last] = true;
-                    requestP[curFd].post_number = last;
-                    requestP[curFd].status = POST_FROM;
-                    send(curFd, "OK", RECORD_LEN, 0);
-                    break;
-                }
-            } else {
-                tempFdArray[0].fd = curFd;
-                tempFdArray[0].events = POLLOUT;
-                poll(tempFdArray, 1, -1);
-                send(curFd, "X", RECORD_LEN, 0);
+    for (int i = 0; i <= RECORD_NUM; i++) {
+        last = (last + 1) % RECORD_NUM;
+        if (i != RECORD_NUM) {
+            if (writeLocked[last]) continue;
+            writeLock[last].l_start = RECORD_LEN * last;
+            if (fcntl(BulletinFd, F_SETLK, &writeLock[last]) == 0) {
+                writeLocked[last] = true;
+                requestP[curFd].post_number = last;
+                requestP[curFd].status = POST_FROM;
+                send(curFd, "OK", RECORD_LEN, 0);
+                break;
             }
+        } else {
+            tempFdArray[0].fd = curFd;
+            tempFdArray[0].events = POLLOUT;
+            poll(tempFdArray, 1, -1);
+            send(curFd, "X", RECORD_LEN, 0);
         }
     }
-    // for (int i = 0; i <= 20; i++) {
-    //     last = (last + 1) % RECORD_NUM;
-    //     if (i / RECORD_NUM == 0) {
-    //         pread(BulletinFd, requestP[curFd].buf, FROM_LEN, RECORD_LEN * last);
-    //         if (strcmp(requestP[curFd].buf, "") == 0) {
-    //             if (writeLocked[last]) continue;
-    //             writeLock[last].l_start = RECORD_LEN * last;
-    //             if (fcntl(BulletinFd, F_SETLK, &writeLock[last]) == 0) {
-    //                 writeLocked[last] = true;
-    //                 requestP[curFd].post_number = last;
-    //                 requestP[curFd].status = POST_FROM;
-    //                 memset(requestP[curFd].buf, 0, RECORD_LEN);
-    //                 send(curFd, "OK", RECORD_LEN, 0);
-    //                 break;
-    //             }
-    //         }
-    //     } else if (i / RECORD_NUM == 1) {
-    //         if (writeLocked[last]) continue;
-    //         writeLock[last].l_start = RECORD_LEN * last;
-    //         if (fcntl(BulletinFd, F_SETLK, &writeLock[last]) == 0) {
-    //             writeLocked[last] = true;
-    //             requestP[curFd].post_number = last;
-    //             requestP[curFd].status = POST_FROM;
-    //             memset(requestP[curFd].buf, 0, RECORD_LEN);
-    //             send(curFd, "OK", RECORD_LEN, 0);
-    //             break;
-    //         }
-    //     } else {
-    //         tempFdArray[0].fd = curFd;
-    //         tempFdArray[0].events = POLLOUT;
-    //         poll(tempFdArray, 1, -1);
-    //         send(curFd, "[Error] Maximum posting limit exceeded", RECORD_LEN, 0);
-    //     }
-    // }
 }
 
 void handleWaiting(int curFd, int BulletinFd, struct pollfd *readFdArray, struct pollfd *writeFdArray) {
@@ -323,7 +287,6 @@ void handlePullFrom(int curFd, int BulletinFd, struct pollfd *writeFdArray) {
         requestP[curFd].status = WAITING;
         if (requestP[curFd].lock_count) {
             fprintf(stderr, "[Warning] Try to access locked post - %d\n", requestP[curFd].lock_count);
-            requestP[curFd].lock_count = 0;
         }
     } else {
         send(curFd, requestP[curFd].buf, FROM_LEN, 0);
