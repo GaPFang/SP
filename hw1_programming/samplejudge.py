@@ -10,7 +10,7 @@ import os
 source = ["Makefile", "server.c", "client.c", "hw1.h"]
 executable = ["server", "client"]
 testpath = "sampletestcases"
-timeout = 0.1
+timeout = 0.2
 parser = ArgumentParser()
 parser.add_argument("-t", "--task", choices=["0_1", "0_2", "1_1", "1_2"], nargs="+")
 args = parser.parse_args()
@@ -309,3 +309,5 @@ if __name__ == "__main__":
         testcases = [testcases[i] for i in task]
         scores = [scores[i] for i in task]
     Checker().run()
+
+

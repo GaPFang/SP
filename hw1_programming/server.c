@@ -83,7 +83,8 @@ int main(int argc, char** argv) {
     //     exit(1);
     // }
 
-    dup2(STDOUT_FILENO, STDERR_FILENO);
+    // dup2(STDOUT_FILENO, STDERR_FILENO);
+    setbuf(stdout, NULL);
 
     struct sockaddr_in cliaddr;  // used by accept()
     int clilen;
@@ -121,7 +122,7 @@ int main(int argc, char** argv) {
     struct pollfd *writeFdArray = (struct pollfd *)malloc(sizeof(struct pollfd) * maxfd);
 
     // Loop for handling connections
-    // fprintf(stderr, "\nstarting on %.80s, port %d, fd %d, maxconn %d...\n", svr.hostname, svr.port, svr.listen_fd, maxfd);
+    fprintf(stderr, "\nstarting on %.80s, port %d, fd %d, maxconn %d...\n", svr.hostname, svr.port, svr.listen_fd, maxfd);
 
     while (1) {
         // TODO: Add IO multiplexing
@@ -132,26 +133,24 @@ int main(int argc, char** argv) {
             if (conn_fd < 0) {
                 if (errno == EINTR || errno == EAGAIN) continue;  // try again
                 if (errno == ENFILE) {
-                    // (void) fprintf(stderr, "out of file descriptor table ... (maxconn %d)\n", maxfd);
+                    (void) fprintf(stderr, "out of file descriptor table ... (maxconn %d)\n", maxfd);
                     continue;
                 }
                 ERR_EXIT("accept");
             }
             requestP[conn_fd].conn_fd = conn_fd;
             requestP[conn_fd].status = PULL_FROM;
-            requestP[conn_fd].pull_number = 0;
-            requestP[conn_fd].lock_count = 0;
             readFdArray[conn_fd - BulletinFd - 1].fd = conn_fd;
             readFdArray[conn_fd - BulletinFd - 1].events = POLLIN;
             writeFdArray[conn_fd - BulletinFd - 1].fd = conn_fd;
             writeFdArray[conn_fd - BulletinFd - 1].events = POLLOUT;
             if (conn_fd > largestFd) largestFd = conn_fd;
             strcpy(requestP[conn_fd].host, inet_ntoa(cliaddr.sin_addr));
-            // fprintf(stderr, "getting a new request... fd %d from %s\n", conn_fd, requestP[conn_fd].host);
+            fprintf(stderr, "getting a new request... fd %d from %s\n", conn_fd, requestP[conn_fd].host);
         }
 
         // TODO: handle requests from clients
-        int totalReadFds = poll(readFdArray, largestFd  - BulletinFd, 5);
+        int totalReadFds = poll(readFdArray, largestFd  - BulletinFd, 2);
         int curFd = BulletinFd + 1;
         while (totalReadFds) {
             if (readFdArray[curFd - BulletinFd - 1].revents) {
@@ -172,7 +171,7 @@ int main(int argc, char** argv) {
             }
             curFd++;
         }
-        int totalWriteFds = poll(writeFdArray, largestFd - BulletinFd, 5);
+        int totalWriteFds = poll(writeFdArray, largestFd - BulletinFd, 2);
         curFd = BulletinFd + 1;
         while (totalWriteFds) {
             if (writeFdArray[curFd - BulletinFd - 1].revents) {
@@ -196,13 +195,13 @@ int check_listen_fd() {
     struct pollfd fdArray[1];
     fdArray[0].fd = svr.listen_fd;
     fdArray[0].events = POLLIN;
-    return poll(fdArray, 1, 5);
+    return poll(fdArray, 1, 2);
 }
 
 void findPostNumber(int curFd, int BulletinFd) {
     for (int i = 0; i <= RECORD_NUM; i++) {
-        last = (last + 1) % RECORD_NUM;
         if (i != RECORD_NUM) {
+            last = (last + 1) % RECORD_NUM;
             if (writeLocked[last]) continue;
             writeLock[last].l_start = RECORD_LEN * last;
             if (fcntl(BulletinFd, F_SETLK, &writeLock[last]) == 0) {
@@ -241,7 +240,7 @@ void handlePostFrom(int curFd, int BulletinFd) {
     requestP[curFd].status = POST_CONTENT;
     tempFdArray[0].fd = curFd;
     tempFdArray[0].events = POLLIN;
-    if (poll(tempFdArray, 1, 5)) {
+    if (poll(tempFdArray, 1, 2)) {
         memset(requestP[curFd].buf, 0, sizeof(requestP[curFd].buf));
         recv(requestP[curFd].conn_fd, requestP[curFd].buf, RECORD_LEN, 0);
         handlePostContent(curFd, BulletinFd);
@@ -257,7 +256,7 @@ void handlePostContent(int curFd, int BulletinFd) {
     writeLocked[requestP[curFd].post_number] = false;
     writeLock[requestP[curFd].post_number].l_type = F_WRLCK;
     requestP[curFd].status = WAITING;
-    fprintf(stderr, "[Log] Receive post from %s\n", requestP[curFd].buf);
+    printf("[Log] Receive post from %s\n", requestP[curFd].buf);
 }
 
 void handlePullFrom(int curFd, int BulletinFd, struct pollfd *writeFdArray) {
@@ -286,14 +285,14 @@ void handlePullFrom(int curFd, int BulletinFd, struct pollfd *writeFdArray) {
         writeFdArray[curFd].events = 0;
         requestP[curFd].status = WAITING;
         if (requestP[curFd].lock_count) {
-            fprintf(stderr, "[Warning] Try to access locked post - %d\n", requestP[curFd].lock_count);
+            printf("[Warning] Try to access locked post - %d\n", requestP[curFd].lock_count);
         }
     } else {
         send(curFd, requestP[curFd].buf, FROM_LEN, 0);
         requestP[curFd].status = PULL_CONTENT;
         tempFdArray[0].fd = curFd;
         tempFdArray[0].events = POLLOUT;
-        if (poll(tempFdArray, 1, 5)) {
+        if (poll(tempFdArray, 1, 2)) {
             handlePullContent(curFd, BulletinFd, writeFdArray);
         }
     }
@@ -310,7 +309,7 @@ void handlePullContent(int curFd, int BulletinFd, struct pollfd *writeFdArray) {
     requestP[curFd].pull_number++;
     tempFdArray[0].fd = curFd;
     tempFdArray[0].events = POLLOUT;
-    if (poll(tempFdArray, 1, 5)) {
+    if (poll(tempFdArray, 1, 2)) {
         handlePullFrom(curFd, BulletinFd, writeFdArray);
     }
 }
