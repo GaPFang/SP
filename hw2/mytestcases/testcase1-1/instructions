@@ -1,0 +1,47 @@
+init_server 3
+init_client 0 5
+init_client 1 5
+init_client 2 5
+send 0 post
+send 1 post
+send 2 post
+send 3 post
+send 4 post
+send 5 post
+send 6 post
+send 7 post
+send 8 post
+send 9 post
+send 10 post
+send 11 post
+send 12 post
+send 13 post
+send 14 post
+send 0 a b
+send 1 a b
+send 2 a b
+send 3 a b
+send 4 a b
+send 5 a b
+send 6 a b
+send 7 a b
+send 8 a b
+send 9 a b
+exit_client 0
+exit_client 1
+exit_client 2
+exit_client 3
+exit_client 4
+exit_client 5
+exit_client 6
+exit_client 7
+exit_client 8
+exit_client 9
+exit_client 10
+exit_client 11
+exit_client 12
+exit_client 13
+exit_client 14
+exit_server 0
+exit_server 1
+exit_server 2

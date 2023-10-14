@@ -1,0 +1,140 @@
+init_server 5
+init_client 0 3
+init_client 1 3
+init_client 2 3
+init_client 3 3
+init_client 4 3
+send 5 post
+send 0 post
+send 3 post
+send 6 post
+send 2 post
+send 8 post
+send 5 5UR2
+send 14 post
+send 8 JQ4V
+send 1 post
+send 13 pull
+send 12 pull
+send 14 02KV
+send 13 pull
+send 0 XDSU
+send 1 APLK
+send 8 2CASZX2HZOHAQJULY2C
+send 5 Z01ERW63Z7U1W4N6MXF
+send 1 Z32GXPTIVNEQWK4LSIJ
+send 3 R4M8
+send 10 post
+send 0 CTSJHLWGV30BO2UKL3D
+send 14 SZ16OAS83LKL4G9CTKE
+send 10 RI8D
+send 2 NNBB
+send 7 pull
+send 9 pull
+send 1 post
+send 1 UKFR
+send 5 post
+send 3 PNYERJW4Z4X8FFX03CB
+send 14 pull
+send 5 OAFH
+send 12 pull
+send 7 pull
+send 1 9LOWHARC2N6LFEQ7QUM
+send 0 post
+send 9 pull
+send 6 6WT8
+send 8 post
+send 6 EK1TR1JHUGKR8LK10K8
+send 8 QB30
+send 5 HWI8LOT6T82NQFZKFX1
+send 1 post
+send 12 pull
+send 5 pull
+send 4 pull
+send 13 pull
+send 6 pull
+send 12 pull
+send 6 post
+send 3 pull
+send 3 post
+send 6 OF9W
+send 7 post
+send 1 I5J9
+send 5 post
+send 3 BEEZ
+send 14 pull
+send 11 post
+send 3 UE4O3V9C47H5C8HBJYE
+send 7 816K
+send 8 PCMPBXF60Y4BPFJGLE2
+send 7 7PXNJR559J2JH9KZ1RQ
+send 11 ICKQ
+send 3 pull
+send 4 pull
+send 13 post
+send 5 C5KY
+send 12 post
+send 3 post
+send 3 HLT0
+send 7 post
+send 6 87F8JN357MJNFLEJ9BW
+send 2 Q5ETSJWU9VC4TNTBAUH
+send 14 pull
+send 10 NYNU5G4AN3A9S5RPBN4
+send 14 pull
+send 1 ITL50SXHXF6MQPCBM36
+send 11 A3ZDSK783J4IHLOWETS
+send 11 post
+send 10 post
+send 2 post
+send 11 XKU9
+send 5 JYSMT71MKARU2GIE9YF
+send 2 GIXK
+send 1 post
+send 6 post
+send 9 post
+send 0 EDN0
+send 14 post
+send 11 33643E9EA92V0MYIEMR
+send 11 pull
+send 13 INA1
+send 8 post
+send 11 post
+send 4 pull
+send 12 OL5J
+send 0 7SV9HZCQRI1K2HJF01S
+send 7 pull
+send 1 302Y
+send 1 G9GR3QLI9TI2G9CH4BG
+send 2 RV3BQZXLOG7X8R0NM81
+send 3 CQPP1L8ZN983UYJHYYJ
+send 6 HMRS
+send 6 ID4VPKR26A8U0T7D4GV
+send 8 0KRU
+send 8 IUEC0TEACGUYQY406L4
+send 9 F8K5
+send 9 OPWUAGQQNK7N3KV4ES7
+send 10 FSXB
+send 10 SSXBAQ0GB3BCD8CXSFU
+send 12 N11FNR2EJS7ZI88EPBY
+send 13 KMWR2QTF9I06PSHKVI0
+exit_client 0
+exit_client 1
+exit_client 2
+exit_client 3
+exit_client 4
+exit_client 5
+exit_client 6
+exit_client 7
+exit_client 8
+exit_client 9
+exit_client 10
+exit_client 11
+exit_client 12
+exit_client 13
+exit_client 14
+exit_server 0
+exit_server 1
+exit_server 2
+exit_server 3
+exit_server 4
