@@ -20,6 +20,7 @@ int main(int argc, char *argv[]) {
             // section C
             close(fd[0]);
             dup2(fd[1], 1);
+            close(fd[1]);
             execlp(argv[i], argv[i], (char *) 0);
         }
         // section D
