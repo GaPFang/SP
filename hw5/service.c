@@ -93,7 +93,9 @@ int main(int argc, char *argv[]) {
     printf("%s has been spawned, pid: %d, secret: %lu\n", service_name, pid, secret);
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    
+
+    head = realloc(head, sizeof(node));
+
     if (strcmp(service_name, "Manager") == 0) {
         while (1) {
             commandHandler();
@@ -110,7 +112,7 @@ int main(int argc, char *argv[]) {
 
 void commandHandler() {
     memset(buf, 0, MAX_CMD_LEN);
-    fgets(buf, sizeof(buf), stdin);
+    fgets(buf, MAX_CMD_LEN, stdin);
     char command[8], target1[MAX_SERVICE_NAME_LEN], target2[MAX_SERVICE_NAME_LEN];
     sscanf(buf, "%s %s %s", command, target1, target2);
     if (strcmp(command, "spawn") == 0) {
@@ -138,13 +140,16 @@ void commandHandler() {
 // }
 
 bool spawnHandler(char target[], char newChild[]) {
-    print_receive_command(service_name, "spawn");
+    memset(buf, 0, MAX_CMD_LEN);
+    sprintf(buf, "spawn %s %s", target, newChild);
+    print_receive_command(service_name, buf);
     if (strcmp(service_name, target) == 0) {
         node *cur = head;
-        while (cur) {
+        while (cur -> next) {
             cur = cur -> next;
         }
-        cur = malloc(sizeof(node));
+        cur -> next = malloc(sizeof(node));
+        cur = cur -> next;
         cur -> next = NULL;
         int pfd1[2], pfd2[2];
         pipe2(pfd1, O_CLOEXEC);
@@ -174,10 +179,10 @@ bool spawnHandler(char target[], char newChild[]) {
         // printf("%s\n", buf);
         return true;
     }
-    node *cur = head;
+    node *cur = head -> next;
     while (cur) {
         memset(buf, 0, MAX_CMD_LEN);
-        sprintf(buf, "spawn %s %s\n", target, newChild);
+        sprintf(buf, "spawn %s %s", target, newChild);
         if (childHandler(cur)) {
             return true;
         }
@@ -197,14 +202,13 @@ bool exchangeHandler() {
 void parentHandler() {
     memset(buf, 0, MAX_CMD_LEN);
     read(3, buf, MAX_CMD_LEN);
-    printf("%s\n", buf);
     char command[8], target1[MAX_SERVICE_NAME_LEN], target2[MAX_SERVICE_NAME_LEN];
     sscanf(buf, "%s %s %s", command, target1, target2);
     if (strcmp(command, "spawn") == 0) {
         if (spawnHandler(target1, target2)) {
-            print_spawn(target1, target2);
+            write(4, "success", 7);
         } else {
-            print_not_exist(target1);
+            write(4, "fail", 4);
         }
     } else if (strcmp(command, "kill") == 0) {
         killHandler();
@@ -217,6 +221,5 @@ bool childHandler(node *cur) {
     write(cur -> pfd[1], buf, MAX_CMD_LEN);
     memset(buf, 0, MAX_CMD_LEN);
     read(cur -> pfd[0], buf, MAX_CMD_LEN);
-    printf("hi\n");
     return (strcmp(buf, "success") == 0) ? true : false;
 }
