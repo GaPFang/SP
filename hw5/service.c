@@ -23,7 +23,7 @@ typedef struct node {
 static unsigned long secret;
 static char service_name[MAX_SERVICE_NAME_LEN];
 char buf[MAX_CMD_LEN];
-char fifo1[MAX_FIFO_NAME_LEN], fifo2[MAX_FIFO_NAME_LEN], fifo3[MAX_FIFO_NAME_LEN], fifo4[MAX_FIFO_NAME_LEN];
+char fifo1[MAX_FIFO_NAME_LEN], fifo2[MAX_FIFO_NAME_LEN];
 node *head = NULL;
 bool exitFlag = false;
 
@@ -65,7 +65,9 @@ int killHandler(char target[]);
 
 int killRecur();
 
-int exchangeHandler(char target1[], char target2[]);
+int exchangeHandler(char target1[], char target2[], int flag);
+
+bool exchangeHandler2(char target1[], char target2[]);
 
 void parentHandler();
 
@@ -143,41 +145,14 @@ void commandHandler() {
         sprintf(fifo2, "%s_to_%s.fifo", target2, target1);
         mkfifo(fifo2, 0600);
         int fifofd2 = open(fifo2, O_RDWR);
-        memset(fifo3, 0, MAX_FIFO_NAME_LEN);
-        sprintf(fifo3, "%s_and_%s.fifo", target1, target2);
-        mkfifo(fifo3, 0600);
-        int fifofd3 = open(fifo3, O_RDWR);
-        memset(fifo4, 0, MAX_FIFO_NAME_LEN);
-        sprintf(fifo4, "%s_and_Manager.fifo", target2);
-        mkfifo(fifo4, 0600);
-        int fifofd4 = open(fifo4, O_RDWR);
-        exchangeHandler(target1, target2);
-        if (strcmp(service_name, target1) == 0) {
-            print_acquire_secret(target1, target2, secret);
-            int fifofd5 = open(fifo3, O_WRONLY);
-            write(fifofd5, "done", 4);
-            close(fifofd5);
-        } else if (strcmp(service_name, target2) == 0) {
-            int fifofd5 = open(fifo3, O_RDONLY);
-            memset(buf, 0, MAX_CMD_LEN);
-            read(fifofd5, buf, MAX_CMD_LEN);
-            print_acquire_secret(target2, target1, secret);
-            int fifofd6 = open(fifo4, O_WRONLY);
-            write(fifofd6, "done", 4);
-            close(fifofd5);
-            close(fifofd6);
-        }
-        memset(buf, 0, MAX_CMD_LEN);
-        read(fifofd4, buf, 4);
+        exchangeHandler(target1, target2, 3);
+        exchangeHandler2(target1, target2);
+        exchangeHandler2(target2, target1);
         print_exchange(target1, target2);
         close (fifofd1);
         close (fifofd2);
-        close (fifofd3);
-        close (fifofd4);
         unlink(fifo1);
         unlink(fifo2);
-        unlink(fifo3);
-        unlink(fifo4);
     }
 }
 
@@ -287,21 +262,16 @@ void openFifo(char target1[], char target2[]) {
     sprintf(fifo1, "%s_to_%s.fifo", target1, target2);
     memset(fifo2, 0, MAX_FIFO_NAME_LEN);
     sprintf(fifo2, "%s_to_%s.fifo", target2, target1);
-    memset(fifo3, 0, MAX_FIFO_NAME_LEN);
-    sprintf(fifo3, "%s_and_%s.fifo", target1, target2);
-    memset(fifo4, 0, MAX_FIFO_NAME_LEN);
-    sprintf(fifo4, "%s_and_Manager.fifo", target2);
 }
 
-int exchangeHandler(char target1[], char target2[]) {
+int exchangeHandler(char target1[], char target2[], int flag) {
     memset(buf, 0, MAX_CMD_LEN);
     sprintf(buf, "exchange %s %s", target1, target2);
     print_receive_command(service_name, buf);
     int num = 0;
-    int fifofd1, fifofd2;
     if (strcmp(service_name, target1) == 0) {
         openFifo(target1, target2);
-        fifofd1 = open(fifo1, O_WRONLY);
+        int fifofd1 = open(fifo1, O_WRONLY);
         memset(buf, 0, MAX_CMD_LEN);
         sprintf(buf, "%ld", secret);
         write(fifofd1, buf, MAX_CMD_LEN);
@@ -309,44 +279,57 @@ int exchangeHandler(char target1[], char target2[]) {
         num += 1;
     } else if (strcmp(service_name, target2) == 0) {
         openFifo(target1, target2);
-        fifofd2 = open(fifo2, O_WRONLY);
+        int fifofd2 = open(fifo2, O_WRONLY);
         memset(buf, 0, MAX_CMD_LEN);
         sprintf(buf, "%ld", secret);
         write(fifofd2, buf, MAX_CMD_LEN);
         close(fifofd2);
         num += 2;
     }
+    if (flag - num == 0) {
+        return num;
+    }
     node *cur = head -> next;
     while (cur) {
         memset(buf, 0, MAX_CMD_LEN);
-        sprintf(buf, "exchange %s %s", target1, target2);
+        sprintf(buf, "exchange %s %s %d", target1, target2, flag - num);
         num += childHandler(cur);
-        if (num == 3) {
+        if (flag - num == 0) {
             break;
         }
         cur = cur -> next;
     }
+    return num;
+}
+
+bool exchangeHandler2(char target1[], char target2[]) {
     if (strcmp(service_name, target1) == 0) {
-        fifofd2 = open(fifo2, O_RDONLY);
+        int fifofd2 = open(fifo2, O_RDONLY);
         memset(buf, 0, MAX_CMD_LEN);
         read(fifofd2, buf, MAX_CMD_LEN);
         secret = (unsigned long)atol(buf);
+        print_acquire_secret(target1, target2, secret);
         close(fifofd2);
-    } else if (strcmp(service_name, target2) == 0) {
-        fifofd1 = open(fifo1, O_RDONLY);
-        memset(buf, 0, MAX_CMD_LEN);
-        read(fifofd1, buf, MAX_CMD_LEN);
-        secret = (unsigned long)atol(buf);
-        close(fifofd1);
+        return true;
     }
-    return num;
+    node *cur = head -> next;
+    while (cur) {
+        memset(buf, 0, MAX_CMD_LEN);
+        sprintf(buf, "exchange2 %s %s", target1, target2);
+        if (childHandler(cur)) {
+            return true;
+        }
+        cur = cur -> next;
+    }
+    return false;
 }
 
 void parentHandler() {
     memset(buf, 0, MAX_CMD_LEN);
     read(3, buf, MAX_CMD_LEN);
     char command[9], target1[MAX_SERVICE_NAME_LEN], target2[MAX_SERVICE_NAME_LEN];
-    sscanf(buf, "%s %s %s", command, target1, target2);
+    int flag;
+    sscanf(buf, "%s %s %s %d", command, target1, target2, &flag);
     if (strcmp(command, "spawn") == 0) {
         if (spawnHandler(target1, target2)) {
             write(4, "1", 1);
@@ -369,22 +352,13 @@ void parentHandler() {
         exit(0);
     } else if (strcmp(command, "exchange") == 0) {
         memset(buf, 0, MAX_CMD_LEN);
-        sprintf(buf, "%d", exchangeHandler(target1, target2));
+        sprintf(buf, "%d", exchangeHandler(target1, target2, flag));
         write(4, buf, 1);
-        if (strcmp(service_name, target1) == 0) {
-            print_acquire_secret(target1, target2, secret);
-            int fifofd3 = open(fifo3, O_WRONLY);
-            write(fifofd3, "done", 4);
-            close(fifofd3);
-        } else if (strcmp(service_name, target2) == 0) {
-            int fifofd3 = open(fifo3, O_RDONLY);
-            memset(buf, 0, MAX_CMD_LEN);
-            read(fifofd3, buf, MAX_CMD_LEN);
-            print_acquire_secret(target2, target1, secret);
-            int fifofd4 = open(fifo4, O_WRONLY);
-            write(fifofd4, "done", 4);
-            close(fifofd3);
-            close(fifofd4);
+    } else if (strcmp(command, "exchange2") == 0) {
+        if (exchangeHandler2(target1, target2)) {
+            write(4, "1", 1);
+        } else {
+            write(4, "0", 1);
         }
     }
 }
