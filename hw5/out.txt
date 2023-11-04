@@ -1,0 +1,35 @@
+Manager has been spawned, pid: 95863, secret: 1786739575
+Manager has received spawn Manager A
+A has been spawned, pid: 95877, secret: 755376071
+Manager has spawned a new service A
+Manager has received spawn Manager B
+B has been spawned, pid: 95878, secret: 1519053328
+Manager has spawned a new service B
+Manager has received spawn A C
+A has received spawn A C
+C has been spawned, pid: 95879, secret: 1219174904
+A has spawned a new service C
+Manager has received spawn B D
+A has received spawn B D
+C has received spawn B D
+B has received spawn B D
+D has been spawned, pid: 95880, secret: 1977778712
+B has spawned a new service D
+Manager has received spawn D E
+A has received spawn D E
+C has received spawn D E
+B has received spawn D E
+D has received spawn D E
+E has been spawned, pid: 95881, secret: 1684763482
+D has spawned a new service E
+Manager has received spawn E F
+A has received spawn E F
+C has received spawn E F
+B has received spawn E F
+D has received spawn E F
+E has received spawn E F
+F has been spawned, pid: 95882, secret: 1379611648
+E has spawned a new service F
+Manager has received exchange A B
+A has received exchange A B
+C has received exchange A B

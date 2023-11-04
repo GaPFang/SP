@@ -1,2 +1,2 @@
 set args Manager
-@REM set detach-on-fork off
+set detach-on-fork off
