@@ -67,7 +67,7 @@ int killRecur();
 
 int exchangeHandler(char target1[], char target2[], int flag);
 
-bool exchangeHandler2(char target1[], char target2[]);
+bool exchangeHandler2(char target1[], char target2[], int flag);
 
 void parentHandler();
 
@@ -146,8 +146,8 @@ void commandHandler() {
         mkfifo(fifo2, 0600);
         int fifofd2 = open(fifo2, O_RDWR);
         exchangeHandler(target1, target2, 3);
-        exchangeHandler2(target1, target2);
-        exchangeHandler2(target2, target1);
+        exchangeHandler2(target1, target2, 1);
+        exchangeHandler2(target2, target1, 2);
         print_exchange(target1, target2);
         close (fifofd1);
         close (fifofd2);
@@ -227,11 +227,6 @@ int killHandler(char target[]) {
         sprintf(buf, "kill %s", target);
         int num = childHandler(cur);
         if (num) {
-            if (cur -> next) {
-                cur -> next -> last = cur -> last;
-            }
-            cur -> last -> next = cur -> next;
-            free(cur);
             return num;
         }
         cur = cur -> next;
@@ -302,20 +297,25 @@ int exchangeHandler(char target1[], char target2[], int flag) {
     return num;
 }
 
-bool exchangeHandler2(char target1[], char target2[]) {
+bool exchangeHandler2(char target1[], char target2[], int flag) {
     if (strcmp(service_name, target1) == 0) {
-        int fifofd2 = open(fifo2, O_RDONLY);
+        int fifofd;
+        if (flag == 1) {
+            fifofd = open(fifo2, O_RDONLY);
+        } else if (flag == 2) {
+            fifofd = open(fifo1, O_RDONLY);
+        }
         memset(buf, 0, MAX_CMD_LEN);
-        read(fifofd2, buf, MAX_CMD_LEN);
+        read(fifofd, buf, MAX_CMD_LEN);
         secret = (unsigned long)atol(buf);
         print_acquire_secret(target1, target2, secret);
-        close(fifofd2);
+        close(fifofd);
         return true;
     }
     node *cur = head -> next;
     while (cur) {
         memset(buf, 0, MAX_CMD_LEN);
-        sprintf(buf, "exchange2 %s %s", target1, target2);
+        sprintf(buf, "exchange2 %s %s %d", target1, target2, flag);
         if (childHandler(cur)) {
             return true;
         }
@@ -327,7 +327,7 @@ bool exchangeHandler2(char target1[], char target2[]) {
 void parentHandler() {
     memset(buf, 0, MAX_CMD_LEN);
     read(3, buf, MAX_CMD_LEN);
-    char command[9], target1[MAX_SERVICE_NAME_LEN], target2[MAX_SERVICE_NAME_LEN];
+    char command[10], target1[MAX_SERVICE_NAME_LEN], target2[MAX_SERVICE_NAME_LEN];
     int flag;
     sscanf(buf, "%s %s %s %d", command, target1, target2, &flag);
     if (strcmp(command, "spawn") == 0) {
@@ -355,7 +355,7 @@ void parentHandler() {
         sprintf(buf, "%d", exchangeHandler(target1, target2, flag));
         write(4, buf, 1);
     } else if (strcmp(command, "exchange2") == 0) {
-        if (exchangeHandler2(target1, target2)) {
+        if (exchangeHandler2(target1, target2, flag)) {
             write(4, "1", 1);
         } else {
             write(4, "0", 1);
@@ -372,6 +372,11 @@ int childHandler(node *cur) {
         wait(&status);
         memset(buf, 0, MAX_CMD_LEN);
         read(cur -> pfd[0], buf, MAX_CMD_LEN);
+        if (cur -> next) {
+            cur -> next -> last = cur -> last;
+        }
+        cur -> last -> next = cur -> next;
+        free(cur);
     }
     return atoi(buf);
 }
