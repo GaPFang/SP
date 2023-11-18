@@ -73,11 +73,6 @@ void parentHandler();
 
 int childHandler(node *cur);
 
-void clearInputBuffer() {
-    int c;
-    while ((c = getchar()) != '\n' && c != EOF);
-}
-
 int main(int argc, char *argv[]) {
     pid_t pid = getpid();    
 
@@ -102,7 +97,7 @@ int main(int argc, char *argv[]) {
 
     head = realloc(head, sizeof(node));
 
-    if (strcmp(service_name, "Manager") == 0) {
+    if (is_manager()) {
         while (1) {
             if (exitFlag) exit(0);
             commandHandler();
@@ -244,6 +239,8 @@ int killRecur() {
         write(cur -> pfd[1], "killRecur", 9);
         memset(buf, 0, MAX_CMD_LEN);
         read(cur -> pfd[0], buf, 2);
+        close(cur -> pfd[0]);
+        close(cur -> pfd[1]);
         int status;
         wait(&status);
         num += atoi(buf);
@@ -349,6 +346,8 @@ void parentHandler() {
         memset(buf, 0, MAX_CMD_LEN);
         sprintf(buf, "%d", killRecur());
         write(4, buf, 2);
+        close(3);
+        close(4);
         exit(0);
     } else if (strcmp(command, "exchange") == 0) {
         memset(buf, 0, MAX_CMD_LEN);
@@ -372,6 +371,8 @@ int childHandler(node *cur) {
         wait(&status);
         memset(buf, 0, MAX_CMD_LEN);
         read(cur -> pfd[0], buf, MAX_CMD_LEN);
+        close(cur -> pfd[0]);
+        close(cur -> pfd[1]);
         if (cur -> next) {
             cur -> next -> last = cur -> last;
         }
