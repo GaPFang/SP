@@ -1,0 +1,83 @@
+#include "threadtools.h"
+#include <sys/signal.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+
+
+void fibonacci(int id, int arg) {
+    if (thread_setup(id, arg)) {
+        return;
+    }
+
+    for (RUNNING->i = 1; ; RUNNING->i++) {
+        if (RUNNING->i <= 2)
+            RUNNING->x = RUNNING->y = 1;
+        else {
+            /* We don't need to save tmp, so it's safe to declare it here. */
+            int tmp = RUNNING->y;
+            RUNNING->y = RUNNING->x + RUNNING->y;
+            RUNNING->x = tmp;
+        }
+        printf("%d %d\n", RUNNING->id, RUNNING->y);
+        sleep(1);
+
+        if (RUNNING->i == RUNNING->arg) {
+            thread_exit();
+        }
+        else {
+            thread_yield();
+        }
+    }
+}
+
+void factorial(int id, int arg){
+    // TODO
+    if (thread_setup(id, arg)) {
+        return;
+    }
+
+    for (RUNNING->i = 1; ; RUNNING->i++) {
+        if (RUNNING->i == 1)
+            RUNNING->y = 1;
+        else {
+            /* We don't need to save tmp, so it's safe to declare it here. */
+            RUNNING->y *= RUNNING->i;
+        }
+        printf("%d %d\n", RUNNING->id, RUNNING->y);
+        sleep(1);
+
+        if (RUNNING->i == RUNNING->arg) {
+            thread_exit();
+        }
+        else {
+            thread_yield();
+        }
+    }
+}
+
+
+void bank_operation(int id, int arg) {
+    // TODO
+    if (thread_setup(id, arg)) {
+        return;
+    }
+
+    lock();
+    sleep(1);
+    thread_yield();
+    printf("%d %d ", RUNNING->id, bank.balance);
+    if (RUNNING -> arg > 0) {
+        bank.balance += RUNNING -> arg;
+    }
+    else {
+        if (bank.balance + RUNNING -> arg > 0) {
+            bank.balance += RUNNING -> arg;
+        }
+    }
+    printf("%d\n", bank.balance);
+    sleep(1);
+    thread_yield();
+    unlock();
+    thread_exit();
+}
