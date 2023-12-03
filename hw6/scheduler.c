@@ -23,6 +23,7 @@ void sighandler(int signo) {
 
 void val1() {
     if (bank.lock_owner == -1 && wq_size > 0) {
+        bank.lock_owner = waiting_queue[0] -> id;
         ready_queue[rq_size] = waiting_queue[0];
         rq_size++;
         wq_size--;
@@ -46,6 +47,7 @@ void val2() {
 
 void val3() {
     if (bank.lock_owner == -1 && wq_size > 0) {
+        bank.lock_owner = waiting_queue[0] -> id;
         ready_queue[rq_size] = waiting_queue[0];
         rq_size++;
         wq_size--;
@@ -53,9 +55,9 @@ void val3() {
             waiting_queue[i] = waiting_queue[i + 1];
         }
     }
-    free(ready_queue[rq_current]);
     rq_size--;
     if (rq_size <= 0) return;
+    free(RUNNING);
     if (rq_current == rq_size) {
         rq_current = 0;
     } else {

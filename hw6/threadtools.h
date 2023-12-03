@@ -72,10 +72,12 @@ void scheduler();
 #define lock(){\
     if (bank.lock_owner == -1) {\
         bank.lock_owner = RUNNING->id;\
-        printf("%d acquired the lock\n", RUNNING->id);\
     } else {\
-        longjmp(sched_buf, 2);\
+        if (setjmp(RUNNING->environment) == 0) {\
+            longjmp(sched_buf, 2);\
+        }\
     }\
+    printf("%d acquired the lock\n", RUNNING->id);\
 }
 
 #define unlock() ({\
