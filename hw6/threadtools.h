@@ -77,12 +77,12 @@ void scheduler();
             longjmp(sched_buf, 2);\
         }\
     }\
-    printf("%d acquired the lock\n", RUNNING->id);\
 }
 
 #define unlock() ({\
-    bank.lock_owner = -1;\
-    printf("%d released the lock\n", RUNNING->id);\
+    if (bank.lock_owner == RUNNING->id) {\
+        bank.lock_owner = -1;\
+    }\
 })
 
 #endif // THREADTOOL

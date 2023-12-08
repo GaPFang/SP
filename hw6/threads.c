@@ -64,6 +64,7 @@ void bank_operation(int id, int arg) {
     }
 
     lock();
+    printf("%d acquired the lock\n", RUNNING->id);
     sleep(1);
     thread_yield();
     printf("%d %d ", RUNNING->id, bank.balance);
@@ -79,5 +80,7 @@ void bank_operation(int id, int arg) {
     sleep(1);
     thread_yield();
     unlock();
+    printf("%d released the lock\n", RUNNING->id);
+    sleep(1);
     thread_exit();
 }
