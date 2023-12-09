@@ -16,7 +16,7 @@ void sighandler(int signo) {
         printf("caught SIGALRM\n");
         alarm(timeslice);
     } else if (signo == SIGTSTP) {
-        printf("^Zcaught SIGTSTP\n");
+        printf("caught SIGTSTP\n");
     }
     longjmp(sched_buf, 1);
 }

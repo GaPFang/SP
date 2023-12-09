@@ -70,13 +70,12 @@ void scheduler();
 }
 
 #define lock(){\
-    if (bank.lock_owner == -1) {\
-        bank.lock_owner = RUNNING->id;\
-    } else {\
+    if (bank.lock_owner != -1) {\
         if (setjmp(RUNNING->environment) == 0) {\
             longjmp(sched_buf, 2);\
         }\
     }\
+    bank.lock_owner = RUNNING->id;\
 }
 
 #define unlock() ({\

@@ -26,5 +26,5 @@ DIFF=$(diff ur_out out)
 if [ "$DIFF" != "" ]
 then
     echo "Wrong Output"
-    echo "$(DIFF)"
+    echo "$($DIFF)"
 fi
