@@ -19,7 +19,7 @@ void *tpool_thread(void *arg) {
     pool->task_count++;
     if (pool->end && pool->task_count == pool->n_tasks) {
       pthread_cond_broadcast(&pool->c_pool);
-    }
+    } 
     pthread_mutex_unlock(&pool->m_pool);
     t.func(t.arg);
   }
@@ -41,6 +41,7 @@ void tpool_wait(tpool *pool) {
   // TODO
   pthread_mutex_lock(&pool->m_pool);
   pool->end = true;
+  pthread_cond_broadcast(&pool->c_pool);
   pthread_mutex_unlock(&pool->m_pool);
   for (int i = 0; i < pool -> n_threads; i++) {
     pthread_join(pool -> threads[i], NULL);
