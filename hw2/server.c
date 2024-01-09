@@ -221,7 +221,7 @@ void findPostNumber(int curFd, int BulletinFd) {
             tempFdArray[0].fd = curFd;
             tempFdArray[0].events = POLLOUT;
             poll(tempFdArray, 1, -1);
-            send(curFd, "X", RECORD_LEN, 0);
+            write(curFd, "X", RECORD_LEN);
         }
     }
 }
@@ -278,7 +278,7 @@ void handlePullFrom(int curFd, int BulletinFd, struct pollfd *writeFdArray) {
             return;
         }
     } else {
-        send(curFd, "end", FROM_LEN, 0);
+        write(curFd, "end", FROM_LEN);
         writeFdArray[curFd].events = POLLIN;
         requestP[curFd].status = WAITING;
         if (requestP[curFd].lock_count) {
@@ -292,7 +292,7 @@ void handlePullFrom(int curFd, int BulletinFd, struct pollfd *writeFdArray) {
         readLock[requestP[curFd].pull_number].l_type = F_UNLCK;
         fcntl(BulletinFd, F_SETLK, &readLock[requestP[curFd].pull_number]);
         readLock[requestP[curFd].pull_number].l_type = F_RDLCK;
-        send(curFd, "end", FROM_LEN, 0);
+        write(curFd, "end", FROM_LEN);
         writeFdArray[curFd].events = POLLIN;
         requestP[curFd].status = WAITING;
         if (requestP[curFd].lock_count) {

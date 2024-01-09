@@ -17,19 +17,27 @@ void *Collatz(void *args) {
     // printf("%lld\n", x);
   }
   // try uncomment printf
-  printf("%lld\n", cnt);
+  // printf("%lld\n", cnt);
   return NULL;
 }
-#define N 10
-#define M 0x800000
+#define N 2
+#define M 0x2
 int main() {
-  tpool *pool = tpool_init(N);
+  tpool *pool1 = tpool_init(N);
+  tpool *pool2 = tpool_init(N);
+  pool1 -> index = 1;
+  pool2 -> index = 2;
   LL *arg = malloc(M * sizeof(LL));
   for (int i = 0; i < M; i++) {
     arg[i] = 0x10000000ll + i;
-    tpool_add(pool, Collatz, (void *)&arg[i]);
+    tpool_add(pool1, Collatz, (void *)&arg[i]);
+    tpool_add(pool2, Collatz, (void *)&arg[i]);
   }
-  tpool_wait(pool);
-  tpool_destroy(pool);
+  tpool_wait(pool1);
+  printf("pool1 done\n");
+  tpool_wait(pool2);
+  printf("pool2 done\n");
+  tpool_destroy(pool1);
+  tpool_destroy(pool2);
   free(arg);
 }
